@@ -11,9 +11,7 @@ setup(
     packages=find_packages(),
     include_package_data=True,
     install_requires=[
-        'Click',
-        'python-dotenv',
-        'pip-licenses'
+        'Click'
     ],
     entry_points={
         'console_scripts': [
