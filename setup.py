@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='require-foss',
-    version='0.1.3',
+    version='0.1.4',
     description='Tool that checks if all licenses from a project requirements are complient with FOSS.',
     url='https://github.com/marcelfox/require-foss',
     author='Marcel Fox',
