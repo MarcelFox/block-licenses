@@ -16,13 +16,13 @@ config = ConfigParser()
 @click.option('-c', '--check', is_flag=True, type=bool, help='Check licenses from the requirements.txt file.')
 @click.option('-b', '--blocked', is_flag=True, default=False, type=bool, help='Print blocked list.')
 @click.option('-p', '--permitted', is_flag=True, default=False, type=bool, help='Print permitted list.')
+@click.option('-q', '--quiet', is_flag=True, default=False, type=bool, help='Do not print any output.')
+@click.option('-v', '--verbose', is_flag=True, default=False, type=bool, help='Print a detailed output for blocked packages.')
 @click.pass_context
-def cli(ctx, check, blocked, permitted):
+def cli(ctx, check, blocked, permitted, quiet, verbose):
     """
     Main command related to the license scope.
     """
-
-    get_package_list_from_requirements()
     config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../default.ini')
     config.read(config_path)
     if exists("licenses.ini"):
@@ -44,12 +44,13 @@ def cli(ctx, check, blocked, permitted):
         sys.exit(0)
 
     package_details = get_package_list_from_requirements()
-    blocked_list = check_blocked_licenses(package_details, blocked_licenses_list)
+    blocked_list = check_blocked_licenses(package_details, blocked_licenses_list, verbose)
 
 
     if len(blocked_list) > 0:
-        click.echo('blocked packages')
-        click.echo(json.dumps(blocked_list, indent=2))
+        if not quiet:
+            click.echo('Found blocked packages:')
+            click.echo(json.dumps(blocked_list, indent=2))
         sys.exit(1)
 
 
@@ -62,7 +63,6 @@ def filters(line):
 
 def get_licenses_from_package(pkg_name: str):
     distribution = get_distribution(pkg_name)
-    print(distribution)
     try:
         lines = distribution.get_metadata_lines('METADATA')
     except OSError:
@@ -70,13 +70,16 @@ def get_licenses_from_package(pkg_name: str):
     return list(chain.from_iterable(map(filters, lines)))
 
 
-def check_blocked_licenses(packages_details_list, blocked_licenses_list) -> List:
+def check_blocked_licenses(packages_details_list, blocked_licenses_list, verbose: bool=False) -> List:
     blocked_list = list()
     for index, package in enumerate(packages_details_list):
         licenses_list = package.get('licenses')
         for license_name in licenses_list:
             if license_name.lower() in blocked_licenses_list:
-                blocked_list.append(packages_details_list[index])
+                if verbose:
+                    blocked_list.append(packages_details_list[index])
+                else:
+                    blocked_list.append(packages_details_list[index].pop('package'))
     return blocked_list
 
 
