@@ -23,7 +23,7 @@ def cli(ctx, check, blocked, permitted, quiet, verbose):
     """
     Main command related to the license scope.
     """
-    config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../default.ini')
+    config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config/default.ini')
     config.read(config_path)
     if exists("licenses.ini"):
         config.read('./licenses.ini')
