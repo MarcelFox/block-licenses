@@ -4,7 +4,8 @@ import click
 import json
 import subprocess
 from itertools import chain, compress
-from pkg_resources import get_distribution
+from pkg_resources import get_distribution, DistributionNotFound
+from app.core.package_class import PackageList
 
 from os.path import exists
 from configparser import ConfigParser
@@ -13,97 +14,74 @@ from typing import Tuple, Dict, List, Optional, Union
 config = ConfigParser()
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 
+
 @click.command(context_settings=CONTEXT_SETTINGS)
 @click.option('-c', '--check', is_flag=True, type=bool, help='Check licenses from the requirements.txt file.')
 @click.option('-b', '--blocked', is_flag=True, default=False, type=bool, help='Print blocked list.')
 @click.option('-p', '--permitted', is_flag=True, default=False, type=bool, help='Print permitted list.')
 @click.option('-q', '--quiet', is_flag=True, default=False, type=bool, help='Do not print any output.')
-@click.option('-v', '--verbose', is_flag=True, default=False, type=bool, help='Print a detailed output for blocked packages.')
-@click.option('-r', 'requirements', default="requirements.txt", type=str, help='Indicate the requirements file to be used.')
-@click.option('-A', '--all', 'all_requirements', is_flag=True, default=False, type=str, help='Print all available licenses based on the requirements file.')
+@click.option('-v', '--verbose', is_flag=True, default=False, type=bool,
+              help='Print a detailed output for blocked packages.')
+@click.option('-r', 'requirements', default="requirements.txt", type=str,
+              help='Indicate the requirements file to be used.')
+@click.option('-A', '--all', 'all_requirements', is_flag=True, default=False, type=str,
+              help='Print all available licenses based on the requirements file.')
+@click.option(
+    '--mode', type=click.Choice(['permitted', 'blocked'],
+                                case_sensitive=False), default='blocked',
+    help='Mode which will be used to check packages, either from the permitted list or blocked list perspective.')
+@click.option(
+    '--format', 'format_to', type=click.Choice(['text', 'json', 'column'],
+                                               case_sensitive=False), default='json',
+    help='Format output.')
 @click.pass_context
-def cli(ctx, check, blocked, permitted, quiet, verbose, requirements, all_requirements):
+def cli(ctx, check, blocked, permitted, quiet, verbose, requirements, all_requirements, mode, format_to):
     """
     Tool that checks if all licenses from a project requirements are complient with FOSS.
     """
-    config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config/default.ini')
-    config.read(config_path)
-    if exists("licenses.ini"):
-        config.read('./licenses.ini')
+    packages = PackageList(requirements=requirements)
 
-    permitted_licenses_list = [value for value in config.get('licenses', 'permitted').split('\n') if value]
-    blocked_licenses_list = [value for value in config.get('licenses', 'blocked').split('\n') if value]
+    if all_requirements:
+        format_output(content_list=packages.detailed_list, verbose=verbose, format_to=format_to)
+        return sys.exit(0)
+
+    if permitted:
+        format_output(content_list=packages.permitted_licenses, verbose=verbose, format_to=format_to)
+        return sys.exit(0)
 
     if blocked:
-        click.echo('Blocked List:')
-        for i in blocked_licenses_list:
-            click.echo(f' - {i}')
-        sys.exit(0)
-    
-    if permitted:
-        click.echo('Permitted List:')
-        for i in permitted_licenses_list:
-            click.echo(f' - {i}')
-        sys.exit(0)
+        format_output(content_list=packages.blocked_licenses, verbose=verbose, format_to=format_to)
+        return sys.exit(0)
 
-    package_details = get_package_list_from_requirements(requirements)
-    if all_requirements:
-        print(json.dumps(package_details, indent=2))
-        sys.exit(0)
-    blocked_list = check_blocked_licenses(package_details, blocked_licenses_list, verbose)
-
-    print()
-
-
-    if len(blocked_list) > 0:
-        if not quiet:
-            click.echo('Found blocked packages:')
-            click.echo(json.dumps(blocked_list, indent=2))
+    found_blocked = len(packages.check_blocked_licenses(verbose=verbose)) > 0
+    if not quiet and found_blocked:
+        click.echo('Found Blocked:')
+        format_output(content_list=packages.check_blocked_licenses(verbose=verbose), verbose=verbose, format_to=format_to)
         sys.exit(1)
 
 
-def filters(line):
-    return compress(
-        (line[9:], line[39:]),
-        (line.startswith('License:'), line.startswith('Classifier: License')),
-    )
+def format_output(content_list: List, verbose: bool = False, format_to: str = 'json'):
+    has_package_details = type(content_list[0]) == dict
 
+    if format_to == 'json':
+        click.echo(json.dumps(content_list, indent=2))
 
-def get_licenses_from_package(pkg_name: str):
-    distribution = get_distribution(pkg_name)
-    try:
-        lines = distribution.get_metadata_lines('METADATA')
-    except OSError:
-        lines = distribution.get_metadata_lines('PKG-INFO')
-    return list(chain.from_iterable(map(filters, lines)))
-
-
-def check_blocked_licenses(packages_details_list, blocked_licenses_list, verbose: bool=False) -> List:
-    blocked_list = list()
-    for index, package in enumerate(packages_details_list):
-        licenses_list = package.get('licenses')
-        for license_name in licenses_list:
-            if license_name.lower() in blocked_licenses_list:
+    if format_to == 'text':
+        for item in content_list:
+            if has_package_details:
                 if verbose:
-                    blocked_list.append(packages_details_list[index])
+                    click.echo(f'{item.get("package")} - {item.get("licenses")}')
                 else:
-                    blocked_list.append(packages_details_list[index].pop('package'))
-    return blocked_list
+                    click.echo(f'{item.get("package")}')
+            else:
+                click.echo(f' - {item}' if verbose else f'{item}')
 
-
-def get_package_list_from_requirements(requirements: str = "requirements.txt") -> List:
-    if not exists(requirements):
-        click.echo(f"Did not found a '{requirements}' file.")
-        sys.exit(1)
-
-    packages_list = list()
-    with open(file=requirements) as file:
-        for line in file:
-            package = line.split('==')[0]
-            if package[0] != "-":
-                packages_list.append(package)
-
-    package_details = list()
-    for package in packages_list:
-        package_details.append({'package': package, 'licenses': get_licenses_from_package(package)})
-    return package_details
+    if format_to == 'column':
+        for item in content_list:
+            if has_package_details:
+                if verbose:
+                    click.echo(f'| {item.get("package")} | {item.get("licenses")} |')
+                else:
+                    click.echo(f'| {item.get("package")} |')
+            else:
+                click.echo(f' - {item}' if verbose else f'{item}')
