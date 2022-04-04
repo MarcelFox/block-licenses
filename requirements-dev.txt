@@ -1,0 +1,5 @@
+click==8.1.1
+pip-licenses==3.5.3
+PTable==0.9.2
+python-dotenv==0.20.0
+-e git+ssh://git@github.com/MarcelFox/require-foss.git@91b5554358ec7b5d52d0da649251b8948d113e75#egg=require_foss
