@@ -52,19 +52,20 @@ class PackageList:
 
     def check_blocked_licenses(self, verbose: bool = False, mode: str = 'blocked') -> List:
         blocked_list = list()
-
         if mode == 'permitted':
             for index, package in enumerate(self.detailed_list):
-                licenses_list = package.get('licenses')
-                for license_name in licenses_list:
+                package_licenses = package.get('licenses')
+                for license_name in package_licenses:
                     if license_name.lower() not in self.permitted_licenses:
                         blocked_list.append(self.detailed_list[index])
+                        break
         else:
             for index, package in enumerate(self.detailed_list):
-                licenses_list = package.get('licenses')
-                for license_name in licenses_list:
+                package_licenses = package.get('licenses')
+                for license_name in package_licenses:
                     if license_name.lower() in self.blocked_licenses:
                         blocked_list.append(self.detailed_list[index])
+                        break
         return blocked_list
 
     def __filters(self, line):
