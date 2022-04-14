@@ -44,18 +44,22 @@ def cli(ctx, check, blocked, permitted, interactive, quiet, verbose, requirement
     packages = PackageList(requirements=requirements)
 
     if all_requirements:
+        # Print all packages found on requirements:
         format_output(content_list=packages.detailed_list, verbose=verbose, format_to=format_to)
         return sys.exit(0)
 
     if permitted:
+        # Print PErmitted list:
         format_output(content_list=packages.permitted_licenses, verbose=verbose, format_to=format_to)
         return sys.exit(0)
 
     if blocked:
+        # Print Blocked list:
         format_output(content_list=packages.blocked_licenses, verbose=verbose, format_to=format_to)
         return sys.exit(0)
 
     if interactive:
+        # Prompt interactively to build a licenses.ini:
         build_interactively(packages.detailed_list)
         sys.exit(0)
 
@@ -96,36 +100,43 @@ def format_output(content_list: List, verbose: bool = False, format_to: str = 'j
 
 
 def build_interactively(detailed_list):
-    build_list = list()
+    blocked_licenses = list()
+    permitted_licenses = list()
+
     for index, package in enumerate(detailed_list):
-        click.echo(json.dumps(package, indent=2))
-        if click.confirm(
-                f"The '{package.get('package')}' package should be blocked? ({index + 1}/{len(detailed_list)})"):
-            build_list.append(package)
-        if click.confirm(f"  Remove packages on the list that have '{package['licenses'][0]}'?"):
-            detailed_list = sanatize_licenses(detailed_list, package['licenses'])
-
-    if len(build_list) > 0:
-        permitted_list = [item for item in detailed_list if item not in build_list]
-        with open('licenses.ini', 'w') as file:
-            file.write('[licenses]\npermitted:\n')
-            write_lines_to_file(file, permitted_list)
+        # PROMPT LICENSES:
+        if len(package['licenses']) > 0:
             
-            file.write('\nblocked:\n')
-            write_lines_to_file(file, build_list)
+            previous_package = None
+            for license_name in package['licenses']:
 
+                # Avoid List helps not repeat the same license:
+                avoid_list = blocked_licenses + permitted_licenses + ['UNKNOW', '']
+                if license_name.lower() not in avoid_list:
+                    if previous_package != package:
+                        click.echo('PACKAGE DETAILS:')
+                        click.echo(json.dumps(package, indent=2))
+                    if click.confirm(
+                        f"Should the license '{license_name.upper()}' be blocked? ({index + 1}/{len(detailed_list)})"):
+                        blocked_licenses.append(license_name.lower())
+                    else:
+                        permitted_licenses.append(license_name.lower())
+                    previous_package = package    
+                sanitize_licenses(detailed_list, license_name)
+
+    with open('licenses.ini', 'w') as file:
+        file.write('[licenses]\npermitted:\n')
+        write_lines_to_file(file, permitted_licenses)
+        
+        file.write('\nblocked:\n')
+        write_lines_to_file(file, blocked_licenses)
 
 def write_lines_to_file(file, content_list):
-    for package in content_list:
-        for index, value in enumerate(package['licenses']):
-            if index == 0:
-                file.write(f"    {value}")
-            else:
-                file.write(f" {value}")
-        file.write(f"\n")
+    for index, license_name in enumerate(content_list):
+        file.write(f"    {license_name}\n")
 
-def sanatize_licenses(detailed_list, license_name):
-    for index, package in enumerate(detailed_list):
-        if license_name[0] in package['licenses']:
-            del detailed_list[index]
+def sanitize_licenses(detailed_list, license_name):
+    for package in detailed_list:
+        if(len(package['licenses']) > 0):
+            package['licenses'] = [value for value in package['licenses'] if value != license_name]
     return detailed_list
