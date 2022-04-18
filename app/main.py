@@ -24,6 +24,9 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 @click.option('-q', '--quiet', is_flag=True, default=False, type=bool, help='Do not print any output.')
 @click.option('-v', '--verbose', is_flag=True, default=False, type=bool,
               help='Print a detailed output for blocked packages.')
+@click.option('-P', '--paranoid', is_flag=True, default=False, type=bool,
+              help='Paranoid mode for the interactive option, loop through each package even if a contains \
+              a license that was already checked.')
 @click.option('-r', 'requirements', default="requirements.txt", type=str,
               help='Indicate the requirements file to be used.')
 @click.option('-a', '--all', 'all_requirements', is_flag=True, default=False, type=str,
@@ -37,7 +40,8 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
                                                case_sensitive=False), default='json',
     help='Format output.')
 @click.pass_context
-def cli(ctx, check, blocked, permitted, interactive, quiet, verbose, requirements, all_requirements, mode, format_to):
+def cli(ctx, check, blocked, permitted, interactive, quiet, 
+        verbose, paranoid, requirements, all_requirements, mode, format_to):
     """
     Tool that checks if all licenses from a project requirements are complient with FOSS.
     """
@@ -120,7 +124,7 @@ def build_interactively(detailed_list):
     for index, package in enumerate(detailed_list):
         # PROMPT LICENSES:
         if len(package['licenses']) > 0:
-            
+
             previous_package = None
             for license_name in package['licenses']:
 
@@ -131,19 +135,22 @@ def build_interactively(detailed_list):
                         click.echo('PACKAGE DETAILS:')
                         click.echo(json.dumps(package, indent=2))
                     if click.confirm(
-                        f"Should the license '{license_name.upper()}' be blocked? ({index + 1}/{len(detailed_list)})"):
+                            f"Should the license '{license_name.upper()}' be blocked? ({index + 1}/{len(detailed_list)})"):
                         blocked_licenses.append(license_name.lower())
                     else:
                         permitted_licenses.append(license_name.lower())
-                    previous_package = package    
-                sanitize_licenses(detailed_list, license_name)
+                    previous_package = package
+                
+                if not paranoid:
+                    sanitize_licenses(detailed_list, license_name)
 
     with open('licenses.ini', 'w') as file:
         file.write('[licenses]\npermitted:\n')
         write_lines_to_file(file, permitted_licenses)
-        
+
         file.write('\nblocked:\n')
         write_lines_to_file(file, blocked_licenses)
+
 
 def write_lines_to_file(file, content_list):
     """
@@ -155,6 +162,7 @@ def write_lines_to_file(file, content_list):
     """
     for index, license_name in enumerate(content_list):
         file.write(f"    {license_name}\n")
+
 
 def sanitize_licenses(detailed_list, license_name) -> list:
     """
