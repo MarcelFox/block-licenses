@@ -49,7 +49,7 @@ def cli(ctx, check, blocked, permitted, interactive, quiet, verbose, requirement
         return sys.exit(0)
 
     if permitted:
-        # Print PErmitted list:
+        # Print Permitted list:
         format_output(content_list=packages.permitted_licenses, verbose=verbose, format_to=format_to)
         return sys.exit(0)
 
