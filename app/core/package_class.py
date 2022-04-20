@@ -56,6 +56,8 @@ class PackageList:
             for index, package in enumerate(self.detailed_list):
                 package_licenses = package.get('licenses')
                 for license_name in package_licenses:
+                    if not license_name or license_name == 'UNKNOWN':
+                        break
                     if license_name.lower() not in self.permitted_licenses:
                         blocked_list.append(self.detailed_list[index])
                         break
@@ -63,6 +65,8 @@ class PackageList:
             for index, package in enumerate(self.detailed_list):
                 package_licenses = package.get('licenses')
                 for license_name in package_licenses:
+                    if not license_name or license_name == 'UNKNOWN':
+                        break
                     if license_name.lower() in self.blocked_licenses:
                         blocked_list.append(self.detailed_list[index])
                         break
