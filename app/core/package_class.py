@@ -1,6 +1,7 @@
 """Module stores PackageList Class."""
 
 import os
+import sys
 import click
 from os.path import exists
 from itertools import chain, compress
