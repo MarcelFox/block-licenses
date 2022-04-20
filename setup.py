@@ -3,8 +3,9 @@ from setuptools import setup, find_packages
 setup(
     name='block-licenses',
     version='0.0.1',
-    description='CLI tool to check and block licenses based on \
-        packages installed and listed on the Requirements file.',
+    description='CLI tool that helps us easily define which licenses are not good based on the requirements.txt file. \
+        It uses pkg_resources to get details from the packages, given us the licenses listed byt the package owner and \
+        returns exit 1 if found a package that contains a blocked license.',
     url='https://github.com/MarcelFox/block-licenses',
     author='Marcel Fox',
     author_email='marcelfox@live.com',

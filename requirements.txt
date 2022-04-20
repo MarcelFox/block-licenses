@@ -1,7 +1,5 @@
-autopep8==1.6.0
 bleach==4.1.0
-block-license==0.0.1
--e git+ssh://git@github.com/MarcelFox/block-licenses.git@25d583ec4ca32beb315f5cdfc7feff613932603c#egg=block_licenses
+-e git+ssh://git@github.com/MarcelFox/block-licenses.git@64e5b718914f61d5c56ad1cde1962cbabc0ca77f#egg=block_licenses
 build==0.7.0
 certifi==2021.10.8
 cffi==1.15.0

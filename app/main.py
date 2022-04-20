@@ -16,34 +16,35 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 
 
 @click.command(context_settings=CONTEXT_SETTINGS)
-@click.option('-c', '--check', is_flag=True, type=bool, help='Check licenses from the requirements.txt file.')
-@click.option('-b', '--blocked', is_flag=True, default=False, type=bool, help='Print blocked list.')
-@click.option('-p', '--permitted', is_flag=True, default=False, type=bool, help='Print permitted list.')
+@click.option('-b', '--blocked', is_flag=True, default=False, type=bool, help='Print blocked licenses list.')
+@click.option('-p', '--permitted', is_flag=True, default=False, type=bool, help='Print permitted licenses list.')
 @click.option('-i', '--interactive', is_flag=True, default=False, type=bool,
               help='Block packages interactively by analysing their licenses.')
 @click.option('-q', '--quiet', is_flag=True, default=False, type=bool, help='Do not print any output.')
 @click.option('-v', '--verbose', is_flag=True, default=False, type=bool,
               help='Print a detailed output for blocked packages.')
 @click.option('-P', '--paranoid', is_flag=True, default=False, type=bool,
-              help='Paranoid mode for the interactive option, loop through each package even if a contains \
+              help='Paranoid mode for the interactive option, loop through each package even if contains \
               a license that was already checked.')
 @click.option('-r', 'requirements', default="requirements.txt", type=str,
               help='Indicate the requirements file to be used.')
 @click.option('-a', '--all', 'all_requirements', is_flag=True, default=False, type=str,
               help='Print all available licenses based on the requirements file.')
 @click.option(
-    '--mode', type=click.Choice(['permitted', 'blocked'],
-                                case_sensitive=False), default='blocked',
-    help='Mode which will be used to check packages, either from the permitted list or blocked list perspective.')
+        '--mode', type=click.Choice(['permitted', 'blocked'],
+                                    case_sensitive=False), default='blocked',
+        help='Mode which will be used to check packages, either from the permitted list or blocked list perspective.')
 @click.option(
-    '--format', 'format_to', type=click.Choice(['text', 'json', 'column'],
-                                               case_sensitive=False), default='json',
-    help='Format output.')
+        '--format', 'format_to', type=click.Choice(['text', 'json', 'column'],
+                                                   case_sensitive=False), default='json',
+        help='Format output.')
 @click.pass_context
-def cli(ctx, check, blocked, permitted, interactive, quiet, 
+def cli(ctx, blocked, permitted, interactive, quiet,
         verbose, paranoid, requirements, all_requirements, mode, format_to):
     """
-    Tool that checks if all licenses from a project requirements are complient with FOSS.
+    CLI tool that helps us easily define which licenses are not good based on the requirements.txt file.
+    It uses pkg_resources to get details from the packages, given us the licenses listed byt the package
+    owner and returns exit 1 if found a package that contains a blocked license.
     """
     packages = PackageList(requirements=requirements)
 
@@ -130,7 +131,7 @@ def build_interactively(detailed_list, paranoid):
             previous_package = None
             for license_name in package['licenses']:
                 # Avoid List helps not repeat the same license:
-                avoid_list = blocked_licenses + permitted_licenses + ['UNKNOW', '']
+                avoid_list = blocked_licenses + permitted_licenses + ['UNKNOWN', '']
                 if paranoid or license_name.lower() not in avoid_list:
                     if not package:
                         break
@@ -141,13 +142,14 @@ def build_interactively(detailed_list, paranoid):
                     if previous_package != package:
                         click.echo('PACKAGE DETAILS:')
                         click.echo(json.dumps(package, indent=2))
-                    if click.confirm(
-                            f"Should the license '{license_name.upper()}' be blocked? ({index + 1}/{len(detailed_list)})"):
-                        blocked_licenses.append(license_name.lower())
-                    else:
+                    if not click.confirm(
+                            f"Should the license '{license_name.upper()}' be blocked? "
+                            f"({index + 1}/{len(detailed_list)})"):
                         permitted_licenses.append(license_name.lower())
+                    else:
+                        blocked_licenses.append(license_name.lower())
                     previous_package = package
-                
+
                 if not paranoid:
                     sanitize_licenses(detailed_list, license_name)
 
@@ -157,7 +159,7 @@ def build_interactively(detailed_list, paranoid):
 
         file.write('\nblocked:\n')
         write_lines_to_file(file, blocked_licenses)
-    
+
     if len(unknown_licenses) > 0:
         click.echo('---')
         click.echo('Found unknown licenses for the following packages:')
@@ -179,7 +181,7 @@ def write_lines_to_file(file, content_list):
 
 def sanitize_licenses(detailed_list, license_name) -> list:
     """
-    This will remove any packages that contains a license that was already verified.
+    This will remove any packages that contain a license that was already verified.
 
     Args:
         detailed_list(list): List of the detailed packages generated by PackageList instance.
@@ -189,6 +191,6 @@ def sanitize_licenses(detailed_list, license_name) -> list:
         Sanitized detailed_list.
     """
     for package in detailed_list:
-        if(len(package['licenses']) > 0):
+        if len(package['licenses']) > 0:
             package['licenses'] = [value for value in package['licenses'] if value != license_name]
     return detailed_list
