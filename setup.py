@@ -1,16 +1,17 @@
 from setuptools import setup, find_packages
 
 setup(
-    name='require-foss',
-    version='0.2.10',
-    description='Tool that checks if all licenses from a project requirements are complient with FOSS.',
+    name='block-license',
+    version='0.0.1',
+    description='CLI tool to check and block licenses based on \
+        packages installed and listed on the Requirements file.',
     url='https://github.com/marcelfox/require-foss',
     author='Marcel Fox',
     author_email='marcelfox@live.com',
-    license='Apache 2.0',
+    license='MIT',
     packages=find_packages(),
     include_package_data=True,
-    package_data = {
+    package_data={
         # If any package contains *.ini files, include them
         '': ['*.ini'],
     },
