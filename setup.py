@@ -1,11 +1,11 @@
 from setuptools import setup, find_packages
 
 setup(
-    name='block-license',
+    name='block-licenses',
     version='0.0.1',
     description='CLI tool to check and block licenses based on \
         packages installed and listed on the Requirements file.',
-    url='https://github.com/marcelfox/require-foss',
+    url='https://github.com/MarcelFox/block-licenses',
     author='Marcel Fox',
     author_email='marcelfox@live.com',
     license='MIT',
@@ -20,7 +20,7 @@ setup(
     ],
     entry_points={
         'console_scripts': [
-            'require-foss = app.main:cli',
+            'block-licenses = app.main:cli',
         ],
     },
 )
