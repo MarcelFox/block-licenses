@@ -15,15 +15,15 @@ class PackageList:
         # Getting the configuration file to check for licenses:
         config = ConfigParser()
         config_path = os.path.join(os.path.dirname(
-            os.path.abspath(__file__)), '../config/default.ini')
+                os.path.abspath(__file__)), '../config/default.ini')
         config.read(config_path)
         if exists("licenses.ini"):
             config.read('./licenses.ini')
 
         self.permitted_licenses = [value for value in config.get(
-            'licenses', 'permitted').split('\n') if value]
+                'licenses', 'permitted').split('\n') if value]
         self.blocked_licenses = [value for value in config.get(
-            'licenses', 'blocked').split('\n') if value]
+                'licenses', 'blocked').split('\n') if value]
         self.requirements = requirements
         self.detailed_list = self.get_package_list_from_requirements()
 
@@ -76,6 +76,6 @@ class PackageList:
     @staticmethod
     def __filters(line):
         return compress(
-            (line[9:], line[39:]),
-            (line.startswith('License:'), line.startswith('Classifier: License')),
+                (line[9:], line[39:]),
+                (line.startswith('License:'), line.startswith('Classifier: License')),
         )
