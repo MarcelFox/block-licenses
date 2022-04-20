@@ -26,7 +26,6 @@ class PackageList:
         try:
             distribution = get_distribution(pkg_name)
         except DistributionNotFound:
-            return False
             click.echo(f"Package '{pkg_name}' not found.\nHave you installed all packages from the '{self.requirements}' file?")
             sys.exit(1)
 
