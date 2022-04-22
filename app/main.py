@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 import click
 import json
@@ -21,6 +22,7 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 @click.option('-i', '--interactive', is_flag=True, default=False, type=bool,
               help='Block packages interactively by analysing their licenses.')
 @click.option('-q', '--quiet', is_flag=True, default=False, type=bool, help='Do not print any output.')
+@click.option('-t', '--test', is_flag=True, default=False, type=bool, help='test.')
 @click.option('-v', '--verbose', is_flag=True, default=False, type=bool,
               help='Print a detailed output for blocked packages.')
 @click.option('-P', '--paranoid', is_flag=True, default=False, type=bool,
@@ -40,13 +42,18 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
         help='Format output.')
 @click.pass_context
 def cli(ctx, blocked, permitted, interactive, quiet,
-        verbose, paranoid, requirements, all_requirements, mode, format_to):
+        verbose, paranoid, requirements, all_requirements, mode, format_to, test):
     """
     CLI tool that helps us easily define which licenses are not good based on the requirements.txt file.
     It uses pkg_resources to get details from the packages, given us the licenses listed byt the package
     owner and returns exit 1 if found a package that contains a blocked license.
     """
     packages = PackageList(requirements=requirements)
+
+    if test:
+        for package in packages.detailed_list:
+            print(format_license_to_spdx(package))
+        sys.exit(0)
 
     if all_requirements:
         # Print all packages found on requirements:
@@ -92,12 +99,17 @@ def format_output(content_list: List, verbose: bool = False, format_to: str = 'j
         click.echo(json.dumps(content_list, indent=2))
 
     if format_to == 'text':
+        if verbose:
+            click.echo('{: <2} {: <20} {: <10} {}'.format("", 'NAME', 'VERSION', 'LICENSES'))
+        else:
+            click.echo('{: <2} {: <20} {: <10}'.format("", 'NAME', 'VERSION'))
         for item in content_list:
+            name, version, licenses = item['package'], item['version'], item['licenses']
             if has_package_details:
                 if verbose:
-                    click.echo(f'{item.get("package")} - {item.get("licenses")}')
+                    click.echo('{: <2} {: <20} {: <10} {}'.format("", name, f'({version})', licenses))
                 else:
-                    click.echo(f'{item.get("package")}')
+                    click.echo('{: <2} {: <20} {: <10}'.format("", name, f'({version})'))
             else:
                 click.echo(f' - {item}' if verbose else f'{item}')
 
@@ -194,3 +206,35 @@ def sanitize_licenses(detailed_list, license_name) -> list:
         if len(package['licenses']) > 0:
             package['licenses'] = [value for value in package['licenses'] if value != license_name]
     return detailed_list
+
+
+def format_license_to_spdx(package):
+    spdx = list()
+    for file in os.listdir(path="app/core/license-list-XML/src"):
+        spdx.append(file.split('.xml')[0])
+
+    license_list = package['licenses']
+
+    for spdx_license in spdx:
+        split_list = re.split(r'(\d\.\d)', spdx_license)
+        pattern = f'(?=.*{spdx_license})'
+
+        if len(split_list) > 1:
+            license = split_list[0]
+            version = split_list[1]
+            something_else = split_list[2]
+
+            pattern = f'(?=.*{license[:-1]})(?=.*{version})'
+            if something_else:
+                pattern = f'(?=.*{license[:-1]})(?=.*{version})(?=.*{something_else[1:]})'
+            spdx_license = f'{license}{version}{something_else}'
+
+        for index, license in enumerate(license_list):
+            if not re.findall('[0-9]+', license):
+                # If the license does not have a number, assume that it's 1.0:
+                license = f'{license}-1.0'
+
+            if re.match(pattern.lower(), license.lower()):
+                package['licenses'][index] = spdx_license
+
+    return package
