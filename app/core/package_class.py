@@ -1,5 +1,5 @@
 """Module stores PackageList Class."""
-
+import json
 import os
 import sys
 from configparser import ConfigParser
@@ -24,11 +24,19 @@ class PackageList:
             config.read('./licenses.ini')
 
         self.permitted_licenses = [value for value in config.get(
-            'licenses', 'permitted').split('\n') if value]
+            'licenses', 'permitted').splitlines() if value]
         self.blocked_licenses = [value for value in config.get(
-            'licenses', 'blocked').split('\n') if value]
+            'licenses', 'blocked').splitlines() if value]
         self.requirements = requirements
         self.detailed_list = self.get_package_list_from_requirements()
+        self.detailed_list = self.get_package_list_from_requirements()
+
+    @staticmethod
+    def __filters(line):
+        return compress(
+            (line[9:], line[39:]),
+            (line.startswith('License:'), line.startswith('Classifier: License')),
+        )
 
     def get_package_list_from_requirements(self) -> List:
         """Returns a detailed package list based on the packages on requirements.txt.
@@ -45,7 +53,13 @@ class PackageList:
 
         package_details = []
         for package in packages_list:
-            package_details.append(self.get_licenses_from_package(package))
+            package = self.get_licenses_from_package(package)
+
+            # Sanitizing empty and UNKNOWN licenses:
+            package['licenses'] = [
+                l for l in package['licenses'] if l not in ['UNKNOWN', '']]
+            package_details.append(package)
+
         return package_details
 
     def get_licenses_from_package(self, pkg_name: str):
@@ -64,15 +78,20 @@ class PackageList:
                 Have you installed all packages from the '{self.requirements}' file?")
             sys.exit(1)
 
+        meta_licenses = ['LICENSE', 'LICENSE.txt', 'LICENSE.md', 'LICENSE.rst']
+        license_content = [distribution.get_metadata(
+            meta) for meta in meta_licenses if distribution.has_metadata(meta)]
+
         try:
             lines = distribution.get_metadata_lines('METADATA')
         except OSError:
+            print()
             lines = distribution.get_metadata_lines('PKG-INFO')
 
         return {'package': distribution.project_name, "version": distribution.version,
-                'licenses': list(chain.from_iterable(map(self.__filters, lines)))}
+                'licenses': list(chain.from_iterable(map(self.__filters, lines))), "license_content": license_content}
 
-    def check_blocked_licenses(self, verbose: bool = False, mode: str = 'blocked') -> List:
+    def check_blocked_licenses(self, mode: str = 'blocked'):
         """Returns a list with possible blocked packages.
 
         Args:
@@ -96,11 +115,5 @@ class PackageList:
                     if license_name.lower() in self.blocked_licenses:
                         blocked_list.append(self.detailed_list[index])
                         break
-        return blocked_list
-
-    @staticmethod
-    def __filters(line):
-        return compress(
-            (line[9:], line[39:]),
-            (line.startswith('License:'), line.startswith('Classifier: License')),
-        )
+        allowed_packages_list = [i for i in self.detailed_list if i not in blocked_list]
+        return blocked_list, allowed_packages_list

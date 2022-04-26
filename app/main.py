@@ -19,7 +19,6 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 @click.option('-i', '--interactive', is_flag=True, default=False, type=bool,
               help='Block packages interactively by analysing their licenses.')
 @click.option('-q', '--quiet', is_flag=True, default=False, type=bool, help='Do not print any output.')
-@click.option('-t', '--test', is_flag=True, default=False, type=bool, help='test.')
 @click.option('-v', '--verbose', is_flag=True, default=False, type=bool,
               help='Print a detailed output for blocked packages.')
 @click.option('-P', '--paranoid', is_flag=True, default=False, type=bool,
@@ -34,23 +33,28 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
                                 case_sensitive=False), default='blocked',
     help='Mode which will be used to check packages, either from the permitted list or blocked list perspective.')
 @click.option(
-    '--format', 'format_to', type=click.Choice(['text', 'json', 'column'],
+    '--format', 'format_to', type=click.Choice(['text', 'json', 'column', 'content'],
                                                case_sensitive=False), default='json',
     help='Format output.')
+@click.option('--get-allowed', is_flag=True, default=False, type=bool,
+              help='Retrieve allowed packages instead.')
 @click.pass_context
 def cli(ctx, blocked, permitted, interactive, quiet, #pylint: disable=unused-argument
-        verbose, paranoid, requirements, all_requirements, mode, format_to, test):
+        verbose, paranoid, requirements, all_requirements, mode, format_to, get_allowed):
     """
     CLI tool that helps us easily define which licenses are not good based on the requirements.txt file.
     It uses pkg_resources to get details from the packages, given us the licenses listed byt the package
     owner and returns exit 1 if found a package that contains a blocked license.
     """
     packages = PackageList(requirements=requirements)
+    blocked_licenses, allowed_packages = packages.check_blocked_licenses(mode=mode)
 
-    if test:
-        for package in packages.detailed_list:
-            print(format_license_to_spdx(package))
+    if get_allowed:
+        format_output(content_list=allowed_packages,
+                      verbose=verbose, format_to=format_to)
         sys.exit(0)
+
+    # if get_allowed
 
     if all_requirements:
         # Print all packages found on requirements:
@@ -75,8 +79,6 @@ def cli(ctx, blocked, permitted, interactive, quiet, #pylint: disable=unused-arg
         build_interactively(packages.detailed_list, paranoid)
         sys.exit(0)
 
-    blocked_licenses = packages.check_blocked_licenses(
-        verbose=verbose, mode=mode)
     if len(blocked_licenses) > 0:
         if not quiet:
             click.echo(f"Found Blocked on '{mode}' mode:")
@@ -97,24 +99,48 @@ def format_output(content_list: List, verbose: bool = False, format_to: str = 'j
     """
     has_package_details = isinstance(content_list[0], dict)
 
+    # Removing License Content
+    if format_to != 'content':
+
+        # TODO: rethink this for retrive only licenses:
+        for item in content_list:
+            if not isinstance(item, str):
+                del item['license_content']
+
+    # FORMAT TO JSON:
     if format_to == 'json':
         click.echo(json.dumps(content_list, indent=2))
 
-    if format_to == 'text':
+    # FORMAT TO TEXT or CONTENT:
+    if format_to == 'text' or format_to == 'content':
         if verbose:
-            click.echo(f'{"": <2} {"NAME": <20} {"VERSION": <10} LICENSES')
+            click.echo(f'{"NAME": <20} {"VERSION": <15} LICENSES\n')
         else:
-            click.echo(f'{"": <2} {"NAME": <20} {"VERSION": <10}')
+            click.echo(f'{"NAME": <20} {"VERSION": <15}\n')
         for item in content_list:
             name, version, licenses = item['package'], item['version'], item['licenses']
             if has_package_details:
                 if verbose:
-                    click.echo(f'{"": <2} {name: <20} {version: <10} {licenses}')
+                    click.echo(f'{name: <20} {version: <15} {licenses[:2]}')
                 else:
-                    click.echo(f'{"": <2} {name: <20} {version: <10}')
+                    click.echo(f'{name: <20} {version: <15}')
             else:
                 click.echo(f' - {item}' if verbose else f'{item}')
+        if format_to == 'content':
 
+            for item in content_list:
+                appendix = f'CLOUD APPENDIX - package: {item["package"]}'
+                horizontal_line = f'{"_" * len(appendix)}\n'
+                click.echo(f'\n\n{"#" * 100}\n\n')
+                click.echo(appendix)
+                click.echo(horizontal_line)
+
+                if len(item['license_content']) > 0:
+                    click.echo(item['license_content'][0])
+                else:
+                    click.echo(f'LICENSE NOT PROVIDED ON PACKAGE - {item["package"]}')
+
+    # FORMAT TO COLUMN:
     if format_to == 'column':
         for item in content_list:
             if has_package_details:
@@ -211,43 +237,3 @@ def sanitize_licenses(detailed_list, license_name) -> list:
             package['licenses'] = [
                 value for value in package['licenses'] if value != license_name]
     return detailed_list
-
-
-def format_license_to_spdx(package):
-    """Helper function to normalize the license to spdx ids.
-
-    Args:
-        package (dict): Package dict that contains an attribute with licenses.
-    """
-    spdx = []
-    for file in os.listdir(path="app/core/license-list-XML/src"):
-        spdx.append(file.split('.xml')[0])
-
-    license_list = package['licenses']
-
-    for spdx_license in spdx:
-        split_list = re.split(r'(\d\.\d)', spdx_license)
-        pattern = f'(?=.*{spdx_license})'
-
-        if len(split_list) > 1:
-            # Build a new pattern to normalise the license:
-            license_name = split_list[0]
-            version = split_list[1]
-            something_else = split_list[2]
-
-            pattern = f'(?=.*{license_name[:-1]})(?=.*{version})'
-            if something_else:
-                pattern = f'(?=.*{license_name[:-1]})(?=.*{version})(?=.*{something_else[1:]})'
-            spdx_license = f'{license_name}{version}{something_else}'
-
-        for index, license_name in enumerate(license_list):
-            if not re.findall('[0-9]+', license_name):
-                # If the license_name does not have a number, assume that it's 1.0:
-                license_name = f'{license_name}-1.0'
-
-            if re.match(pattern.lower(), license_name.lower()):
-                package['licenses'][index] = spdx_license
-
-    package['licenses'] = [i for i in package['licenses'] if i in spdx]
-
-    return package
