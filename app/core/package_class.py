@@ -90,7 +90,7 @@ class PackageList:
         try:
             lines = dist.get_metadata_lines('METADATA')
         except OSError:
-            print()
+            print('LICENSE not found', pkg_name)
             lines = dist.get_metadata_lines('PKG-INFO')
 
         return {'package': dist.project_name, "version": dist.version,
