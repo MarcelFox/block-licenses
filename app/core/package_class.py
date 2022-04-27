@@ -8,8 +8,8 @@ from os.path import exists
 from typing import List
 
 import click
+import pkg_resources
 from pkg_resources import DistributionNotFound, get_distribution
-
 
 class PackageList:
     """Package List Class."""
@@ -82,10 +82,22 @@ class PackageList:
                 Have you installed all packages from the '{self.requirements}' file?")
             sys.exit(1)
 
-        meta_licenses = ['LICENSE', 'LICENSE.txt', 'LICENSE.md', 'LICENSE.rst']
-        license_content = [dist.get_metadata(
-            meta) for meta in meta_licenses if dist.has_metadata(meta)]
+        file_type_list = ['', '.txt', '.md', '.rst']
+        file_name_list = ['license', 'copying', 'licenses']
 
+        # just generating the meta_licenses_list:
+        meta_licenses_list = []
+        for file_type in file_type_list:
+            # licenses meta as upper case:
+            _ = [meta_licenses_list.append(
+                f'{file_name.upper()}{file_type}') for file_name in file_name_list]
+
+            # licenses meta as lower case:
+            _ = [meta_licenses_list.append(
+                f'{file_name}{file_type}') for file_name in file_name_list]
+
+        license_content = [dist.get_metadata(
+            meta) for meta in meta_licenses_list if dist.has_metadata(meta)]
 
         try:
             lines = dist.get_metadata_lines('METADATA')
