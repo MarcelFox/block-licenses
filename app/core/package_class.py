@@ -15,6 +15,10 @@ class PackageList:
     """Package List Class."""
 
     def __init__(self, requirements: str = "requirements.txt"):
+        if not os.path.isfile(requirements):
+            click.echo(f"Did not found a '{requirements}' file.")
+            sys.exit(1)
+
         # Getting the configuration file to check for licenses:
         config = ConfigParser()
         config_path = os.path.join(os.path.dirname(
@@ -72,23 +76,24 @@ class PackageList:
             dict: List of packages.
         """
         try:
-            distribution = get_distribution(pkg_name)
+            dist = get_distribution(pkg_name)
         except DistributionNotFound:
             click.echo(f"Package '{pkg_name}' not found.\n \
                 Have you installed all packages from the '{self.requirements}' file?")
             sys.exit(1)
 
         meta_licenses = ['LICENSE', 'LICENSE.txt', 'LICENSE.md', 'LICENSE.rst']
-        license_content = [distribution.get_metadata(
-            meta) for meta in meta_licenses if distribution.has_metadata(meta)]
+        license_content = [dist.get_metadata(
+            meta) for meta in meta_licenses if dist.has_metadata(meta)]
+
 
         try:
-            lines = distribution.get_metadata_lines('METADATA')
+            lines = dist.get_metadata_lines('METADATA')
         except OSError:
             print()
-            lines = distribution.get_metadata_lines('PKG-INFO')
+            lines = dist.get_metadata_lines('PKG-INFO')
 
-        return {'package': distribution.project_name, "version": distribution.version,
+        return {'package': dist.project_name, "version": dist.version,
                 'licenses': list(chain.from_iterable(map(self.__filters, lines))), "license_content": license_content}
 
     def check_blocked_licenses(self, mode: str = 'blocked'):

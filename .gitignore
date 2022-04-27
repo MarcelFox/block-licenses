@@ -30,6 +30,7 @@ MANIFEST
 licenses.ini
 .vscode
 .idea
+requirements.txt
 
 
 # PyInstaller
