@@ -129,7 +129,7 @@ def format_output(content_list: List, verbose: bool = False, format_to: str = 'j
         if format_to == 'content':
 
             for item in content_list:
-                appendix = f'CLOUD APPENDIX - package: {item["package"]}'
+                appendix = f'CLOUD APPENDIX - {item["package"]} ({item["version"]})'
                 horizontal_line = f'{"_" * len(appendix)}\n'
                 click.echo(f'\n\n{"#" * 100}\n\n')
                 click.echo(appendix)
@@ -138,7 +138,7 @@ def format_output(content_list: List, verbose: bool = False, format_to: str = 'j
                 if len(item['license_content']) > 0:
                     click.echo(item['license_content'][0])
                 else:
-                    click.echo(f'LICENSE NOT PROVIDED ON PACKAGE - {item["package"]}')
+                    click.echo('LICENSE NOT PROVIDED ON PACKAGE')
 
     # FORMAT TO COLUMN:
     if format_to == 'column':
