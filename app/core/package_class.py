@@ -133,4 +133,9 @@ class PackageList:
                         blocked_list.append(self.detailed_list[index])
                         break
         allowed_packages_list = [i for i in self.detailed_list if i not in blocked_list]
+
+        for index, package in enumerate(allowed_packages_list):
+            if len(package['licenses']) == 0:
+                package['licenses'] = ['PSF']
+                allowed_packages_list[index] = package
         return blocked_list, allowed_packages_list
