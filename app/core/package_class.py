@@ -33,13 +33,12 @@ class PackageList:
             'licenses', 'blocked').splitlines() if value]
         self.requirements = requirements
         self.detailed_list = self.get_package_list_from_requirements()
-        self.detailed_list = self.get_package_list_from_requirements()
 
     @staticmethod
     def __filters(line):
         return compress(
-            (line[9:], line[39:]),
-            (line.startswith('License:'), line.startswith('Classifier: License')),
+            (line[9:],),
+            (line.startswith('License:'),),
         )
 
     def get_package_list_from_requirements(self) -> List:
@@ -61,7 +60,7 @@ class PackageList:
 
             # Sanitizing empty and UNKNOWN licenses:
             package['licenses'] = [
-                l for l in package['licenses'] if l not in ['UNKNOWN', '']]
+                l for l in package['licenses'] if l not in ['UNKNOWN', '', 'UNLICENSED']]
             package_details.append(package)
 
         return package_details
@@ -105,8 +104,9 @@ class PackageList:
             print('LICENSE not found', pkg_name)
             lines = dist.get_metadata_lines('PKG-INFO')
 
+        licenses_list = self.remove_license_word(list(chain.from_iterable(map(self.__filters, lines))))
         return {'package': dist.project_name, "version": dist.version,
-                'licenses': list(chain.from_iterable(map(self.__filters, lines))), "license_content": license_content}
+                'licenses': licenses_list, "license_content": license_content}
 
     def check_blocked_licenses(self, mode: str = 'blocked'):
         """Returns a list with possible blocked packages.
@@ -139,3 +139,16 @@ class PackageList:
                 package['licenses'] = ['PSF']
                 allowed_packages_list[index] = package
         return blocked_list, allowed_packages_list
+
+
+    def remove_license_word(self, licenses_list):
+        """
+        Removes the word 'license' from a given list
+        """
+        sanatized_license = ""
+        for index, value in enumerate(licenses_list):
+            for i in value.split():
+                if i.lower() != 'license':
+                    sanatized_license += f'{i} '
+            licenses_list[index] = sanatized_license.strip()
+        return licenses_list

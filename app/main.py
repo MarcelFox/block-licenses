@@ -60,6 +60,7 @@ def cli(ctx, blocked, permitted, interactive, quiet, #pylint: disable=unused-arg
         # Print all packages found on requirements:
         format_output(content_list=packages.detailed_list,
                       verbose=verbose, format_to=format_to)
+        print()
         return sys.exit(0)
 
     if permitted:
@@ -114,22 +115,22 @@ def format_output(content_list: List, verbose: bool = False, format_to: str = 'j
     # FORMAT TO TEXT or CONTENT:
     if format_to == 'text' or format_to == 'content':
         if verbose:
-            click.echo(f'{"NAME": <40} {"VERSION": >10} {"": ^2} LICENSES\n')
+            click.echo(f'{"NAME": <70} {"VERSION": >10} {"": ^2} LICENSES\n')
         else:
-            click.echo(f'{"NAME": <40} {"VERSION": >10}\n')
+            click.echo(f'{"NAME": <70} {"VERSION": >10}\n')
         for item in content_list:
             name, version, licenses = item['package'], item['version'], item['licenses']
             if has_package_details:
                 if verbose:
-                    click.echo(f'{name: <40} {version: >10} {"": ^2} {licenses[:2]}')
+                    click.echo(f'{name: <70} {version: >10} {"": ^2} {licenses[:2]}')
                 else:
-                    click.echo(f'{name: <40} {version: >10}')
+                    click.echo(f'{name: <70} {version: >10}')
             else:
                 click.echo(f' - {item}' if verbose else f'{item}')
         if format_to == 'content':
 
             for item in content_list:
-                appendix = f'CLOUD APPENDIX - {item["package"]} ({item["version"]})'
+                appendix = f'APPENDIX - {item["package"]} ({item["version"]})'
                 horizontal_line = f'{"_" * len(appendix)}\n'
                 click.echo(f'\n\n{"#" * 100}\n\n')
                 click.echo(appendix)
