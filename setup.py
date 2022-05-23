@@ -7,7 +7,7 @@ long_description = (this_directory / "README.md").read_text()
 
 setup(
     name='block-licenses',
-    version='0.0.9',
+    version='0.0.10',
     description='CLI tool that helps us easily define which licenses are not good based on the requirements.txt file. \
         It uses pkg_resources to get details from the packages, given us the licenses listed byt the package owner and \
         returns exit 1 if found a package that contains a blocked license.',
