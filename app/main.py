@@ -115,16 +115,16 @@ def format_output(content_list: List, verbose: bool = False, format_to: str = 'j
     # FORMAT TO TEXT or CONTENT:
     if format_to == 'text' or format_to == 'content':
         if verbose:
-            click.echo(f'{"NAME": <70} {"VERSION": >10} {"": ^2} LICENSES\n')
+            click.echo(f'{"NAME": <70} {"VERSION": >12} {"": ^4} LICENSES\n')
         else:
-            click.echo(f'{"NAME": <70} {"VERSION": >10}\n')
+            click.echo(f'{"NAME": <70} {"VERSION": >12}\n')
         for item in content_list:
             name, version, licenses = item['package'], item['version'], item['licenses']
             if has_package_details:
                 if verbose:
-                    click.echo(f'{name: <70} {version: >10} {"": ^2} {licenses[:2]}')
+                    click.echo(f'{name: <70} {version: >12} {"": ^4} {licenses[:2]}')
                 else:
-                    click.echo(f'{name: <70} {version: >10}')
+                    click.echo(f'{name: <70} {version: >12}')
             else:
                 click.echo(f' - {item}' if verbose else f'{item}')
         if format_to == 'content':
